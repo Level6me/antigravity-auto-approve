@@ -61,8 +61,17 @@ if os.path.exists(path):
 data["toolPermission"] = "always-proceed"
 data["artifactReviewMode"] = "always-proceed"
 data["agentMode"] = "accept-edits"
+data["allowNonWorkspaceAccess"] = True
 
-# 2. 确保 permissions.allow 存在并注入全量工具通配符
+# 2. 自动信任当前用户主目录与工作区
+trusted = data.setdefault("trustedWorkspaces", [])
+home_dir = os.path.expanduser("~")
+cwd = os.getcwd()
+for ws in [home_dir, cwd]:
+    if ws and ws not in trusted:
+        trusted.append(ws)
+
+# 3. 确保 permissions.allow 存在并注入全量工具通配符
 if 'permissions' not in data or not isinstance(data['permissions'], dict):
     data['permissions'] = {}
 
@@ -79,21 +88,20 @@ rules = [
     "mcp(*)"
 ]
 
-added_rules = []
 for r in reversed(rules):
     if r in allow_list:
         allow_list.remove(r)
     allow_list.insert(0, r)
-    added_rules.append(r)
 
 # 回写配置
 with open(path, 'w', encoding='utf-8') as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 
 print("✨ 已成功注入核心策略配置：")
-print("   - toolPermission: 'always-proceed'")
-print("   - artifactReviewMode: 'always-proceed'")
-print("   - agentMode: 'accept-edits'")
+print("   - toolPermission: 'always-proceed' (工具执行免审查)")
+print("   - artifactReviewMode: 'always-proceed' (差异预览免确认)")
+print("   - agentMode: 'accept-edits' (自动采纳修改)")
+print("   - allowNonWorkspaceAccess: true (跨目录文件访问免确认)")
 print("   - permissions.allow: command(*), read_url(*), write_file(*), read_file(*), mcp(*)")
 EOF
 
@@ -113,12 +121,12 @@ done
 
 echo -e "${GREEN}${BOLD}"
 echo "=================================================================="
-echo "✅ 配置完成！Antigravity CLI 已开启终端命令与所有工具全自动免审批。"
+echo "✅ 配置完成！Antigravity CLI 已开启全场景全自动免审批。"
 echo "=================================================================="
 echo -e "${NC}"
 echo -e "${YELLOW}💡 提示：${NC}"
 echo -e "   1. 终端命令 (command)、文件修改 (write_file/edit_file)、网页抓取 (read_url) 与 MCP 工具均已静默放行；"
-echo -e "   2. 工具审查 (toolPermission) 与差异预览 (artifactReviewMode) 已设为 always-proceed；"
+echo -e "   2. 工具审查 (toolPermission)、差异预览 (artifactReviewMode) 及跨目录访问已设为免审；"
 echo -e "   3. 终端启动别名已配置为原生参数 --dangerously-skip-permissions；"
 echo -e "   4. 若当前终端已有正在运行的 agy 会话，请按 ${CYAN}Ctrl+D${NC} 退出后重新启动 agy 即可生效。"
 echo ""

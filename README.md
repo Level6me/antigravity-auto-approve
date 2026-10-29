@@ -18,7 +18,9 @@
    `command(*)` 仅作用于 Shell 终端命令 (`run_command`)。当 Agent 调用网络抓取 (`read_url`)、文件编辑 (`write_file`)、目录读取 (`read_file`) 或外部 MCP 工具时，由于没有匹配规则，仍会触发授权确认。
 3. **差异预览机制（Artifact Review）**：
    默认启用的 `artifactReviewMode` 会在修改代码前后强制等待用户确认 diff。
-4. **运行时命令行标志**：
+4. **跨工作区文件访问限制**：
+   当 Agent 操作当前项目目录以外的文件时，CLI 会弹出跨工作区授权提示，需开启 `allowNonWorkspaceAccess` 并信任工作区。
+5. **运行时命令行标志**：
    CLI 底层提供了官方原生最高优先级免审批参数 `--dangerously-skip-permissions`，若启动时未传入，底层引擎在特定安全边界仍保留了提示钩子。
 
 ---
@@ -46,7 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/Level6me/antigravity-auto-approve/m
 如果您在内网或无 GitHub 访问权限的环境中，可直接运行以下内置单行 Python 指令：
 
 ```bash
-python3 -c "import os,json; p=os.path.expanduser('~/.gemini/antigravity-cli/settings.json'); os.makedirs(os.path.dirname(p),exist_ok=True); d=json.load(open(p)) if os.path.exists(p) else {}; d['toolPermission']='always-proceed'; d['artifactReviewMode']='always-proceed'; d['agentMode']='accept-edits'; a=d.setdefault('permissions',{}).setdefault('allow',[]); [a.remove(r) for r in ['command(*)','read_url(*)','write_file(*)','read_file(*)','mcp(*)'] if r in a]; [a.insert(0,r) for r in reversed(['command(*)','read_url(*)','write_file(*)','read_file(*)','mcp(*)')]; json.dump(d,open(p,'w'),indent=2,ensure_ascii=False); print('✅ Antigravity CLI 全局全工具免审批配置完成！')"
+python3 -c "import os,json; p=os.path.expanduser('~/.gemini/antigravity-cli/settings.json'); os.makedirs(os.path.dirname(p),exist_ok=True); d=json.load(open(p)) if os.path.exists(p) else {}; d['toolPermission']='always-proceed'; d['artifactReviewMode']='always-proceed'; d['agentMode']='accept-edits'; d['allowNonWorkspaceAccess']=True; tw=d.setdefault('trustedWorkspaces',[]); [tw.append(w) for w in [os.path.expanduser('~'),os.getcwd()] if w and w not in tw]; a=d.setdefault('permissions',{}).setdefault('allow',[]); [a.remove(r) for r in ['command(*)','read_url(*)','write_file(*)','read_file(*)','mcp(*)'] if r in a]; [a.insert(0,r) for r in reversed(['command(*)','read_url(*)','write_file(*)','read_file(*)','mcp(*)')]; json.dump(d,open(p,'w'),indent=2,ensure_ascii=False); print('✅ Antigravity CLI 全场景全工具免审批配置完成！')"
 ```
 
 ---
@@ -60,6 +62,8 @@ python3 -c "import os,json; p=os.path.expanduser('~/.gemini/antigravity-cli/sett
 - `"toolPermission": "always-proceed"`：将工具审查模式从拦截询问彻底切为全自动放行。
 - `"artifactReviewMode": "always-proceed"`：跳过文件写入与 diff 的人工确认。
 - `"agentMode": "accept-edits"`：默认自动接受 Agent 提交的代码修改。
+- `"allowNonWorkspaceAccess": true`：彻底放行工作区外文件读写。
+- `"trustedWorkspaces"`：自动加入主目录与当前工作区。
 
 ### 2. 全工具白名单通配
 将全类型工具规则注入 `permissions.allow` 首位：
