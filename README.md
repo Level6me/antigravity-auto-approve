@@ -1,6 +1,6 @@
 # ⚡️ Antigravity CLI Auto-Approve (全场景全局自动审批)
 
-> 一键彻底消除 Google Antigravity CLI (`agy`) 所有工具执行、文件修改、网络访问与终端命令的反复授权弹窗，让 Agent 全自主流畅执行！
+> 一键彻底消除 Google Antigravity CLI (`agy`) 所有工具执行、文件创建与修改 (`Allow creation of this file?`)、网络访问与终端命令的反复授权弹窗，让 Agent 全自主流畅执行！
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS-blue.svg)](#)
@@ -12,16 +12,16 @@
 
 在使用 **Google Antigravity CLI (`agy`)** 时，即使曾经在白名单配置过 `command(*)`，很多开发者仍然发现授权弹窗频繁出现：
 
-1. **工具审查策略拦截（最核心原因）**：
-   Antigravity CLI 默认的 `toolPermission` 为 `request-review`。在官方更新中，`request-review` 模式被严格强化——无论白名单中有什么规则，在审查模式下对代码写入 (`write_file`/`edit_file`)、敏感指令和未预审操作仍会强制暂停并弹出审查确认。只有显式配置 `"toolPermission": "always-proceed"` 才能真正静默执行。
-2. **非终端命令类工具**：
-   `command(*)` 仅作用于 Shell 终端命令 (`run_command`)。当 Agent 调用网络抓取 (`read_url`)、文件编辑 (`write_file`)、目录读取 (`read_file`) 或外部 MCP 工具时，由于没有匹配规则，仍会触发授权确认。
-3. **差异预览机制（Artifact Review）**：
-   默认启用的 `artifactReviewMode` 会在修改代码前后强制等待用户确认 diff。
+1. **新建文件与代码修改审查 (`Allow creation of this file?`)**：
+   CLI 默认运行在 `default` 模式。在该模式下，当 Agent 尝试新建文件 (`write_file`) 时，会强行暂停并弹出 `Allow creation of this file?` 确认；在修改已有文件时，会强制弹出 interactive diff 审查。只有显式设置 Agent 模式为 `accept-edits`，才会静默自动创建与采纳修改。
+2. **工具审查策略拦截 (`toolPermission`)**：
+   Antigravity CLI 默认的 `toolPermission` 为 `request-review`。在近期的 CLI 内部升级中，审查模式被严格强化——无论白名单中配置了什么规则，只要处于 `request-review` 下，未预审的操作仍会强制暂停并弹出审查确认。必须显式配置 `"toolPermission": "always-proceed"` 才能真正静默执行。
+3. **非终端命令类工具存在覆盖盲区**：
+   `command(*)` 仅作用于 Shell 终端命令 (`run_command`)。当 Agent 调用网络抓取 (`read_url`)、文件修改 (`write_file`)、目录读取 (`read_file`) 或外部 MCP 工具时，由于没有匹配规则，仍会触发授权确认。
 4. **跨工作区文件访问限制**：
    当 Agent 操作当前项目目录以外的文件时，CLI 会弹出跨工作区授权提示，需开启 `allowNonWorkspaceAccess` 并信任工作区。
 5. **运行时命令行标志**：
-   CLI 底层提供了官方原生最高优先级免审批参数 `--dangerously-skip-permissions`，若启动时未传入，底层引擎在特定安全边界仍保留了提示钩子。
+   CLI 底层提供了官方原生最高优先级免审批参数 `--dangerously-skip-permissions` 与模式参数 `--mode accept-edits`。若启动时未传入，底层引擎在特定安全边界仍保留了提示钩子。
 
 ---
 
@@ -59,9 +59,9 @@ python3 -c "import os,json; p=os.path.expanduser('~/.gemini/antigravity-cli/sett
 
 ### 1. 核心策略放行 (`settings.json`)
 自动在 `~/.gemini/antigravity-cli/settings.json` 中配置：
+- `"agentMode": "accept-edits"`：彻底消除 `Allow creation of this file?`，自动采纳文件新建与编辑。
 - `"toolPermission": "always-proceed"`：将工具审查模式从拦截询问彻底切为全自动放行。
 - `"artifactReviewMode": "always-proceed"`：跳过文件写入与 diff 的人工确认。
-- `"agentMode": "accept-edits"`：默认自动接受 Agent 提交的代码修改。
 - `"allowNonWorkspaceAccess": true`：彻底放行工作区外文件读写。
 - `"trustedWorkspaces"`：自动加入主目录与当前工作区。
 
@@ -76,9 +76,9 @@ python3 -c "import os,json; p=os.path.expanduser('~/.gemini/antigravity-cli/sett
 ### 3. 原生运行时免审批别名 (`~/.bashrc` / `~/.zshrc`)
 自动为用户的 Shell 注入官方原生参数：
 ```bash
-alias agy="agy --dangerously-skip-permissions"
+alias agy="agy --dangerously-skip-permissions --mode accept-edits"
 ```
-无论在任何路径启动 `agy`，都会附带底层引擎最高优先级的免审批标志。
+无论在任何路径启动 `agy`，都会附带底层引擎最高优先级的免审批及自动采纳修改标志。
 
 ---
 

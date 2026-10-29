@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Antigravity CLI Auto-Approve Installer
-# ⚡️ 一键自动配置 Google Antigravity CLI (agy) 全局工具与命令免审批
+# ⚡️ 一键自动配置 Google Antigravity CLI (agy) 全局工具、代码与命令免审批
 # GitHub: https://github.com/Level6me/antigravity-auto-approve
 # ==============================================================================
 
@@ -100,17 +100,20 @@ with open(path, 'w', encoding='utf-8') as f:
 print("✨ 已成功注入核心策略配置：")
 print("   - toolPermission: 'always-proceed' (工具执行免审查)")
 print("   - artifactReviewMode: 'always-proceed' (差异预览免确认)")
-print("   - agentMode: 'accept-edits' (自动采纳修改)")
+print("   - agentMode: 'accept-edits' (自动创建/采纳文件修改，免除 'Allow creation of this file?')")
 print("   - allowNonWorkspaceAccess: true (跨目录文件访问免确认)")
 print("   - permissions.allow: command(*), read_url(*), write_file(*), read_file(*), mcp(*)")
 EOF
 
-# 4. 配置 Shell 别名 (自动附加原生 --dangerously-skip-permissions)
-ALIAS_CMD='alias agy="agy --dangerously-skip-permissions"'
+# 4. 配置 Shell 别名 (自动附加原生 --dangerously-skip-permissions 与 --mode accept-edits)
+ALIAS_CMD='alias agy="agy --dangerously-skip-permissions --mode accept-edits"'
 
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     if [ -f "$rc" ]; then
-        if ! grep -q "dangerously-skip-permissions" "$rc"; then
+        if grep -q "alias agy=" "$rc"; then
+            sed -i 's|alias agy=.*|'"$ALIAS_CMD"'|g' "$rc"
+            echo -e "${BLUE}🔧 已更新 $rc 中的免审批启动别名${NC}"
+        else
             echo "" >> "$rc"
             echo "# Added by antigravity-auto-approve" >> "$rc"
             echo "$ALIAS_CMD" >> "$rc"
@@ -125,8 +128,8 @@ echo "✅ 配置完成！Antigravity CLI 已开启全场景全自动免审批。
 echo "=================================================================="
 echo -e "${NC}"
 echo -e "${YELLOW}💡 提示：${NC}"
-echo -e "   1. 终端命令 (command)、文件修改 (write_file/edit_file)、网页抓取 (read_url) 与 MCP 工具均已静默放行；"
-echo -e "   2. 工具审查 (toolPermission)、差异预览 (artifactReviewMode) 及跨目录访问已设为免审；"
-echo -e "   3. 终端启动别名已配置为原生参数 --dangerously-skip-permissions；"
+echo -e "   1. 终端命令、代码新建与修改 (write_file/edit_file)、网页抓取 (read_url) 与 MCP 工具均已静默放行；"
+echo -e "   2. 彻底免除 'Allow creation of this file?' 及代码差异确认弹窗；"
+echo -e "   3. 终端启动别名已配置为原生参数 --dangerously-skip-permissions --mode accept-edits；"
 echo -e "   4. 若当前终端已有正在运行的 agy 会话，请按 ${CYAN}Ctrl+D${NC} 退出后重新启动 agy 即可生效。"
 echo ""
